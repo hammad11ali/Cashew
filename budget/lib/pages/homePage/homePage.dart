@@ -250,6 +250,7 @@ class HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             AndroidOnly(child: CheckWidgetLaunch()),
             AndroidOnly(child: RenderHomePageWidgets()),
+            AndroidOnly(child: RenderAccountBalanceWidget()),
             Scaffold(
               resizeToAvoidBottomInset: false,
               body: ScrollbarWrap(

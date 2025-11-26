@@ -94,6 +94,21 @@ class _CheckWidgetLaunchState extends State<CheckWidgetLaunch> {
           wallet: null,
         ),
       );
+    } else if (widgetPayload == "accountBalanceLaunchWidget") {
+      // Open the wallet details page for the selected account in the widget
+      // Uses the stored widget account pk, or falls back to selected wallet
+      String? widgetAccountPk = appStateSettings["widgetAccountPk"];
+      TransactionWallet? wallet = widgetAccountPk != null
+          ? Provider.of<AllWallets>(context, listen: false)
+              .indexedByPk[widgetAccountPk]
+          : Provider.of<AllWallets>(context, listen: false)
+              .indexedByPk[appStateSettings["selectedWalletPk"]];
+      pushRoute(
+        context,
+        WalletDetailsPage(
+          wallet: wallet,
+        ),
+      );
     }
   }
 
@@ -154,6 +169,9 @@ Future updateWidgetColorsAndText(BuildContext context) async {
     );
     await HomeWidget.updateWidget(
       name: 'TransferWidgetProvider',
+    );
+    await HomeWidget.updateWidget(
+      name: 'AccountBalanceWidgetProvider',
     );
   });
 
@@ -228,3 +246,123 @@ class RenderHomePageWidgetsState extends State<RenderHomePageWidgets> {
     );
   }
 }
+
+/// Widget that renders account balance data for the Android home screen widget.
+///
+/// This widget listens to wallet data changes and updates the AccountBalanceWidget
+/// on the Android home screen with the current account name, balance, and currency.
+///
+/// The widget uses the 'widgetAccountPk' setting to determine which account to display.
+/// If not set, it falls back to the currently selected wallet.
+class RenderAccountBalanceWidget extends StatefulWidget {
+  const RenderAccountBalanceWidget({super.key});
+
+  @override
+  State<RenderAccountBalanceWidget> createState() =>
+      RenderAccountBalanceWidgetState();
+}
+
+class RenderAccountBalanceWidgetState
+    extends State<RenderAccountBalanceWidget> {
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration.zero, () async {
+      _updateAccountBalanceWidget();
+    });
+  }
+
+  void refreshState() {
+    setState(() {});
+  }
+
+  /// Updates the account balance widget with current data
+  Future<void> _updateAccountBalanceWidget() async {
+    if (getPlatform(ignoreEmulation: true) != PlatformOS.isAndroid) return;
+
+    // Get the selected account pk for the widget, or use the default selected wallet
+    String? widgetAccountPk = appStateSettings["widgetAccountPk"] ??
+        appStateSettings["selectedWalletPk"];
+
+    if (widgetAccountPk == null) return;
+
+    AllWallets allWallets = Provider.of<AllWallets>(context, listen: false);
+    TransactionWallet? wallet = allWallets.indexedByPk[widgetAccountPk];
+
+    if (wallet == null) {
+      // If the widget account is not found, fall back to the first wallet
+      wallet = allWallets.list.isNotEmpty ? allWallets.list.first : null;
+      if (wallet == null) return;
+    }
+
+    // Save the current account pk
+    await HomeWidget.saveWidgetData<String>(
+      'accountBalanceAccountName',
+      wallet.name,
+    );
+
+    await HomeWidget.updateWidget(
+      name: 'AccountBalanceWidgetProvider',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Get the selected account pk for the widget, or use the default selected wallet
+    String? widgetAccountPk = appStateSettings["widgetAccountPk"] ??
+        appStateSettings["selectedWalletPk"];
+
+    if (widgetAccountPk == null) {
+      return const SizedBox.shrink();
+    }
+
+    return StreamBuilder<TotalWithCount?>(
+      stream: database.watchTotalWithCountOfWallet(
+        isIncome: null,
+        allWallets: Provider.of<AllWallets>(context),
+        searchFilters: SearchFilters(walletPks: [widgetAccountPk]),
+      ),
+      builder: (context, snapshot) {
+        Future.delayed(Duration.zero, () async {
+          if (getPlatform(ignoreEmulation: true) != PlatformOS.isAndroid) return;
+
+          AllWallets allWallets = Provider.of<AllWallets>(context, listen: false);
+          TransactionWallet? wallet = allWallets.indexedByPk[widgetAccountPk];
+
+          if (wallet == null) {
+            // If the widget account is not found, fall back to the first wallet
+            wallet = allWallets.list.isNotEmpty ? allWallets.list.first : null;
+            if (wallet == null) return;
+          }
+
+          double accountBalance = snapshot.data?.total ?? 0;
+          String accountBalanceAmount = convertToMoney(
+            allWallets,
+            accountBalance,
+            currencyKey: wallet.currency,
+          );
+          String currency = wallet.currency ?? "";
+
+          await HomeWidget.saveWidgetData<String>(
+            'accountBalanceAccountName',
+            wallet.name,
+          );
+          await HomeWidget.saveWidgetData<String>(
+            'accountBalanceAmount',
+            accountBalanceAmount,
+          );
+          await HomeWidget.saveWidgetData<String>(
+            'accountBalanceCurrency',
+            currency.isNotEmpty ? currency.toUpperCase() : "account".tr(),
+          );
+          await HomeWidget.updateWidget(
+            name: 'AccountBalanceWidgetProvider',
+          );
+        });
+
+        return const SizedBox.shrink();
+      },
+    );
+  }
+}
+
