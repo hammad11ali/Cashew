@@ -745,6 +745,8 @@ class WidgetSettings extends StatelessWidget {
               ? Icons.area_chart_outlined
               : Icons.area_chart_rounded,
         ),
+        // Account Balance Widget - Account Selection
+        AccountBalanceWidgetSetting(),
         SettingsContainerDropdown(
           title: "widget-theme".tr(),
           icon: appStateSettings["outlinedIcons"]
@@ -795,6 +797,54 @@ class WidgetSettings extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Widget for selecting which account to display in the Account Balance home screen widget.
+///
+/// This setting allows users to choose which account's balance will be shown
+/// on the Android home screen widget. When tapped, it opens a popup with all
+/// available accounts to select from.
+class AccountBalanceWidgetSetting extends StatefulWidget {
+  const AccountBalanceWidgetSetting({super.key});
+
+  @override
+  State<AccountBalanceWidgetSetting> createState() =>
+      _AccountBalanceWidgetSettingState();
+}
+
+class _AccountBalanceWidgetSettingState
+    extends State<AccountBalanceWidgetSetting> {
+  @override
+  Widget build(BuildContext context) {
+    // Get the current widget account pk, or use selected wallet as default
+    String? widgetAccountPk = appStateSettings["widgetAccountPk"] ??
+        appStateSettings["selectedWalletPk"];
+    AllWallets allWallets = Provider.of<AllWallets>(context);
+    TransactionWallet? currentWallet = allWallets.indexedByPk[widgetAccountPk];
+
+    return SettingsContainer(
+      title: "account-balance-widget".tr(),
+      description: currentWallet?.name ?? "select-account".tr(),
+      onTap: () async {
+        TransactionWallet? selectedWallet = await selectWalletPopup(
+          context,
+          selectedWallet: currentWallet,
+          allowEditWallet: false,
+          allowDeleteWallet: false,
+        );
+        if (selectedWallet != null) {
+          await updateSettings("widgetAccountPk", selectedWallet.walletPk,
+              updateGlobalState: true);
+          // Refresh the widget rendering on the homepage
+          homePageStateKey.currentState?.refreshState();
+          setState(() {});
+        }
+      },
+      icon: appStateSettings["outlinedIcons"]
+          ? Icons.account_balance_wallet_outlined
+          : Icons.account_balance_wallet_rounded,
     );
   }
 }

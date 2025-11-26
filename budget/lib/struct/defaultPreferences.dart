@@ -33,6 +33,7 @@ Future<Map<String, dynamic>> getDefaultPreferences() async {
     "accentSystemColor": await systemColorByDefault(),
     "widgetOpacity": 1,
     "widgetTheme": "system", //system, light, dark
+    "widgetAccountPk": null, // Account to display in the Account Balance widget (null uses selected wallet)
     "nonCompactTransactions":
         false, //still in testing, declares a new transaction layout to show more information in lists
     "fadeTransactionNameOverflows":
