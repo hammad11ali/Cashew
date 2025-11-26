@@ -268,7 +268,7 @@ class RenderAccountBalanceWidgetState
   void initState() {
     super.initState();
     Future.delayed(Duration.zero, () async {
-      _updateAccountBalanceWidget();
+      _updateAccountBalanceWidgetData(null);
     });
   }
 
@@ -276,31 +276,54 @@ class RenderAccountBalanceWidgetState
     setState(() {});
   }
 
-  /// Updates the account balance widget with current data
-  Future<void> _updateAccountBalanceWidget() async {
-    if (getPlatform(ignoreEmulation: true) != PlatformOS.isAndroid) return;
-
-    // Get the selected account pk for the widget, or use the default selected wallet
+  /// Resolves the wallet to display in the widget.
+  /// Returns null if no wallet is available.
+  TransactionWallet? _resolveWidgetWallet(AllWallets allWallets) {
     String? widgetAccountPk = appStateSettings["widgetAccountPk"] ??
         appStateSettings["selectedWalletPk"];
 
-    if (widgetAccountPk == null) return;
+    if (widgetAccountPk == null) return null;
 
-    AllWallets allWallets = Provider.of<AllWallets>(context, listen: false);
     TransactionWallet? wallet = allWallets.indexedByPk[widgetAccountPk];
 
-    if (wallet == null) {
+    if (wallet == null && allWallets.list.isNotEmpty) {
       // If the widget account is not found, fall back to the first wallet
-      wallet = allWallets.list.isNotEmpty ? allWallets.list.first : null;
-      if (wallet == null) return;
+      wallet = allWallets.list.first;
     }
 
-    // Save the current account pk
+    return wallet;
+  }
+
+  /// Updates the account balance widget with current data.
+  /// Takes optional totalWithCount data from the stream.
+  Future<void> _updateAccountBalanceWidgetData(TotalWithCount? data) async {
+    if (getPlatform(ignoreEmulation: true) != PlatformOS.isAndroid) return;
+
+    AllWallets allWallets = Provider.of<AllWallets>(context, listen: false);
+    TransactionWallet? wallet = _resolveWidgetWallet(allWallets);
+
+    if (wallet == null) return;
+
+    double accountBalance = data?.total ?? 0;
+    String accountBalanceAmount = convertToMoney(
+      allWallets,
+      accountBalance,
+      currencyKey: wallet.currency,
+    );
+    String currency = wallet.currency ?? "";
+
     await HomeWidget.saveWidgetData<String>(
       'accountBalanceAccountName',
       wallet.name,
     );
-
+    await HomeWidget.saveWidgetData<String>(
+      'accountBalanceAmount',
+      accountBalanceAmount,
+    );
+    await HomeWidget.saveWidgetData<String>(
+      'accountBalanceCurrency',
+      currency.isNotEmpty ? currency.toUpperCase() : "account".tr(),
+    );
     await HomeWidget.updateWidget(
       name: 'AccountBalanceWidgetProvider',
     );
@@ -323,41 +346,10 @@ class RenderAccountBalanceWidgetState
         searchFilters: SearchFilters(walletPks: [widgetAccountPk]),
       ),
       builder: (context, snapshot) {
+        // Use Future.delayed to avoid setState during build
+        // This pattern is consistent with RenderHomePageWidgetsState
         Future.delayed(Duration.zero, () async {
-          if (getPlatform(ignoreEmulation: true) != PlatformOS.isAndroid) return;
-
-          AllWallets allWallets = Provider.of<AllWallets>(context, listen: false);
-          TransactionWallet? wallet = allWallets.indexedByPk[widgetAccountPk];
-
-          if (wallet == null) {
-            // If the widget account is not found, fall back to the first wallet
-            wallet = allWallets.list.isNotEmpty ? allWallets.list.first : null;
-            if (wallet == null) return;
-          }
-
-          double accountBalance = snapshot.data?.total ?? 0;
-          String accountBalanceAmount = convertToMoney(
-            allWallets,
-            accountBalance,
-            currencyKey: wallet.currency,
-          );
-          String currency = wallet.currency ?? "";
-
-          await HomeWidget.saveWidgetData<String>(
-            'accountBalanceAccountName',
-            wallet.name,
-          );
-          await HomeWidget.saveWidgetData<String>(
-            'accountBalanceAmount',
-            accountBalanceAmount,
-          );
-          await HomeWidget.saveWidgetData<String>(
-            'accountBalanceCurrency',
-            currency.isNotEmpty ? currency.toUpperCase() : "account".tr(),
-          );
-          await HomeWidget.updateWidget(
-            name: 'AccountBalanceWidgetProvider',
-          );
+          await _updateAccountBalanceWidgetData(snapshot.data);
         });
 
         return const SizedBox.shrink();

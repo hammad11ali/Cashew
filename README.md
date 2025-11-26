@@ -155,6 +155,34 @@ Changes and progress about development is all heavily documented in GitHub [comm
 - Import Google Sheets: Seamlessly import Google Sheets tables, quickly importing many transactions from a spreadsheet.
 - App Links: Automatically create transactions with pre-filled data using app linking (documentation below)
 
+### 📱 Android Home Screen Widgets
+
+Cashew provides Android home screen widgets for quick access to your financial data without opening the app:
+
+- **Net Total Widget**: Display your total net worth across all accounts or selected accounts
+- **Account Balance Widget**: Show the balance of a specific account of your choice
+- **Transaction Shortcut**: Quickly add new transactions from your home screen
+- **Transfer Shortcut**: Quickly transfer funds between accounts from your home screen
+
+#### Account Balance Widget Setup
+
+1. Long-press on your Android home screen to add a widget
+2. Select "Cashew" from the widget list
+3. Choose "Account Balance" widget
+4. The widget will display the balance of your selected account
+
+#### Configuring the Account Balance Widget
+
+To change which account is displayed in the Account Balance Widget:
+
+1. Open Cashew app
+2. Go to Settings (gear icon)
+3. Scroll to "Widgets" section
+4. Tap on "Account Balance Widget"
+5. Select the account you want to display
+
+The widget updates automatically when your balance changes and follows the theme settings configured in the Widgets section.
+
 ## App Links
 
 A discussion/thread on App Links (example usage and how to harness the power of App Links) can be found at this issue: https://github.com/jameskokoska/Cashew/issues/127#issuecomment-1975096357. 
